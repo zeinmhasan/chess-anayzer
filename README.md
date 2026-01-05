@@ -1,4 +1,4 @@
-<p align="center">
+<img width="1919" height="970" alt="Screenshot 2026-01-05 211748" src="https://github.com/user-attachments/assets/68fe27a0-fb53-40e0-91ee-582af1c74f63" /><p align="center">
   <img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/chess.svg" width="100" height="100" alt="Chess Analyzer Logo">
 </p>
 
@@ -218,6 +218,19 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
+
+## 🖥️ Appearance
+
+### Landing Page
+<img width="1919" height="970" alt="Screenshot 2026-01-05 211748" src="https://github.com/user-attachments/assets/d91adb8d-6018-413f-987e-ff13e632eabf" />
+
+### Game History Page
+<img width="1919" height="966" alt="Screenshot 2026-01-05 211808" src="https://github.com/user-attachments/assets/7162227a-7c47-406f-9538-b772d55c811e" />
+
+### Game Analysis Page
+<img width="1919" height="969" alt="Screenshot 2026-01-05 211716" src="https://github.com/user-attachments/assets/2dd91cff-5940-4710-901c-3dc6eddc2c21" />
+
+
 
 ## 🙏 Acknowledgments
 
