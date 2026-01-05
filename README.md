@@ -1,5 +1,4 @@
-<img width="1919" height="970" alt="Screenshot 2026-01-05 211748" src="https://github.com/user-attachments/assets/68fe27a0-fb53-40e0-91ee-582af1c74f63" /><p align="center">
-  <img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/chess.svg" width="100" height="100" alt="Chess Analyzer Logo">
+<img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/chess.svg" width="100" height="100" alt="Chess Analyzer Logo">
 </p>
 
 <h1 align="center">♟️ Chess Analyzer</h1>
