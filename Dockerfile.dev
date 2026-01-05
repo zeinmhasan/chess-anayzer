@@ -1,0 +1,22 @@
+# Development Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies for node-gyp (needed for some packages)
+RUN apk add --no-cache libc6-compat python3 make g++
+
+# Copy package files first for better caching
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including devDependencies)
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start the development server with hot reload
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,41 @@
+{
+  "name": "chess-analysis-website",
+  "version": "1.0.0",
+  "description": "Free chess game analysis tool - Alternative to Chess.com premium analysis",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "14.2.23",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "chess.js": "1.0.0-beta.8",
+    "react-chessboard": "4.7.2",
+    "stockfish": "16.0.0",
+    "recharts": "2.15.0",
+    "zustand": "5.0.2",
+    "axios": "1.7.9",
+    "clsx": "2.1.1",
+    "tailwind-merge": "2.6.0",
+    "lucide-react": "0.469.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "typescript": "5.7.2",
+    "tailwindcss": "3.4.17",
+    "postcss": "8.4.49",
+    "autoprefixer": "10.4.20",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.23"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

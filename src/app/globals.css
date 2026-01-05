@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 17, 17, 17;
+  --background-end-rgb: 17, 17, 17;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-right {
+  from { 
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to { 
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-bottom {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.slide-in-from-right-5 {
+  animation: slide-in-from-right 0.3s ease-out;
+}
+
+.slide-in-from-bottom {
+  animation: slide-in-from-bottom 0.3s ease-out;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, select {
+  transition: all 0.15s ease;
+}
+
+/* Chess.com-like colors for move classifications */
+.bg-brilliant { background-color: #1baca6; }
+.bg-great { background-color: #5c8bb0; }
+.bg-best { background-color: #96bc4b; }
+.bg-excellent { background-color: #96bc4b; }
+.bg-good { background-color: #a3a3a3; }
+.bg-book { background-color: #a88865; }
+.bg-inaccuracy { background-color: #f7c631; }
+.bg-mistake { background-color: #e58f2a; }
+.bg-blunder { background-color: #ca3431; }
+
+.text-brilliant { color: #1baca6; }
+.text-great { color: #5c8bb0; }
+.text-best { color: #96bc4b; }
+.text-excellent { color: #96bc4b; }
+.text-good { color: #a3a3a3; }
+.text-book { color: #a88865; }
+.text-inaccuracy { color: #f7c631; }
+.text-mistake { color: #e58f2a; }
+.text-blunder { color: #ca3431; }
