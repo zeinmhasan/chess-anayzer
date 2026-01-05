@@ -1,4 +1,5 @@
-<img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/chess.svg" width="100" height="100" alt="Chess Analyzer Logo">
+<p align="center">
+  <img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/chess.svg" width="100" height="100" alt="Chess Analyzer Logo">
 </p>
 
 <h1 align="center">♟️ Chess Analyzer</h1>
