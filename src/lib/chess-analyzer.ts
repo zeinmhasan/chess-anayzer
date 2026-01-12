@@ -110,7 +110,7 @@ export type AnalysisCallback = (progress: AnalysisProgress) => void;
 
 const ANALYSIS_CONFIG = {
   // Stockfish analysis depth
-  depth: 6,
+  depth: 12,
   
   // Move classification thresholds (in centipawns)
   thresholds: {

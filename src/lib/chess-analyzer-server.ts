@@ -57,7 +57,7 @@ export class ChessServerAnalyzer {
    */
   async analyzeGame(
     pgn: string,
-    depth: number = 8,
+    depth: number = 12,
     onProgress?: (progress: number, message: string) => void
   ): Promise<GameAnalysis> {
     if (!this.isInitialized) {

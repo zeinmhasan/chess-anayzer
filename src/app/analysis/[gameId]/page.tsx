@@ -163,6 +163,7 @@ export default function AnalysisPage() {
   const [interactiveMode, setInteractiveMode] = useState(false);
   const [explorationPosition, setExplorationPosition] = useState<string | null>(null);
   const [explorationBestMove, setExplorationBestMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [explorationMoveIndicator, setExplorationMoveIndicator] = useState<{ square: Square; classification: MoveClassification } | null>(null);
   const [moveFeedback, setMoveFeedback] = useState<{
     classification: MoveClassification;
     evalBefore: number;
@@ -260,11 +261,11 @@ export default function AnalysisPage() {
     });
   }, [analysis]);
 
-  const goToStart = useCallback(() => { setCurrentMoveIndex(-1); setExplorationPosition(null); setExplorationBestMove(null); setMoveFeedback(null); }, []);
-  const goBack = useCallback(() => { setCurrentMoveIndex(prev => Math.max(-1, prev - 1)); setExplorationPosition(null); setExplorationBestMove(null); setMoveFeedback(null); }, []);
-  const goForward = useCallback(() => { if (analysis) { setCurrentMoveIndex(prev => Math.min(analysis.moves.length - 1, prev + 1)); setExplorationPosition(null); setExplorationBestMove(null); setMoveFeedback(null); } }, [analysis]);
-  const goToEnd = useCallback(() => { if (analysis) { setCurrentMoveIndex(analysis.moves.length - 1); setExplorationPosition(null); setExplorationBestMove(null); setMoveFeedback(null); } }, [analysis]);
-  const goToMove = useCallback((index: number) => { setCurrentMoveIndex(index); setExplorationPosition(null); setExplorationBestMove(null); setMoveFeedback(null); }, []);
+  const goToStart = useCallback(() => { setCurrentMoveIndex(-1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
+  const goBack = useCallback(() => { setCurrentMoveIndex(prev => Math.max(-1, prev - 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
+  const goForward = useCallback(() => { if (analysis) { setCurrentMoveIndex(prev => Math.min(analysis.moves.length - 1, prev + 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); } }, [analysis]);
+  const goToEnd = useCallback(() => { if (analysis) { setCurrentMoveIndex(analysis.moves.length - 1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); } }, [analysis]);
+  const goToMove = useCallback((index: number) => { setCurrentMoveIndex(index); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -282,10 +283,12 @@ export default function AnalysisPage() {
     
     setIsAnalyzingMove(true);
     setMoveFeedback(null);
+    setExplorationMoveIndicator(null);
     
     try {
       const fen = explorationPosition || currentPosition;
       const chess = new Chess(fen);
+      const wasWhiteTurn = chess.turn() === 'w'; // Who is making this move
       
       let moveResult;
       try {
@@ -300,79 +303,77 @@ export default function AnalysisPage() {
         return { isValid: false };
       }
       
-      const expectedMove = analysis.moves[currentMoveIndex + 1];
-      const isGameMove = expectedMove && expectedMove.from === from && expectedMove.to === to;
+      const newFen = chess.fen();
       
-      if (isGameMove) {
-        setExplorationPosition(chess.fen());
-        // Set the best move for the next position from game history
-        const nextMove = analysis.moves[currentMoveIndex + 2];
-        if (nextMove?.bestMove) {
-          const uci = nextMove.bestMove.uci;
-          if (uci.length >= 4) {
-            setExplorationBestMove({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square });
-          }
-        } else {
-          setExplorationBestMove(null);
-        }
-        setMoveFeedback({
-          classification: expectedMove.classification,
-          evalBefore: expectedMove.evalBefore.score * (expectedMove.isWhite ? 1 : -1),
-          evalAfter: expectedMove.evalAfter.score * (expectedMove.isWhite ? -1 : 1),
-          bestMove: expectedMove.bestMove?.san,
-          isGameMove: true,
-        });
-        setIsAnalyzingMove(false);
-        return { isValid: true, classification: expectedMove.classification, isGameMove: true };
-      }
-      
+      // Initialize engine if needed
       if (!engineRef.current) {
         engineRef.current = new StockfishEngine();
         await engineRef.current.init();
       }
-      
       const engine = engineRef.current;
       
-      let evalBefore = 0;
-      if (currentMoveIndex >= 0 && analysis.moves[currentMoveIndex]) {
-        const prevMove = analysis.moves[currentMoveIndex];
-        evalBefore = prevMove.evalAfter.score * (prevMove.isWhite ? -1 : 1);
-      } else if (currentMoveIndex === -1 && analysis.moves[0]) {
-        evalBefore = analysis.moves[0].evalBefore.score;
+      // Analyze position BEFORE the move to get best move and eval
+      const beforeAnalysis = await engine.analyzePosition(fen, { depth: 12 });
+      const bestMoveSan = beforeAnalysis.bestMoveSan;
+      const bestMoveUci = beforeAnalysis.bestMove;
+      
+      // Eval before from white's perspective
+      const evalBeforeRaw = beforeAnalysis.score;
+      
+      // Analyze position AFTER the move
+      const afterAnalysis = await engine.analyzePosition(newFen, { depth: 12 });
+      // Note: evalAfter is from the perspective of the player TO MOVE (opponent)
+      // So we need to flip it to get from white's perspective
+      const evalAfterRaw = -afterAnalysis.score;
+      
+      // Calculate centipawn loss from the moving player's perspective
+      // If white moved: loss = evalBefore - evalAfter (both from white's perspective)
+      // If black moved: loss = -evalBefore - (-evalAfter) = evalAfter - evalBefore
+      let cpLoss: number;
+      if (wasWhiteTurn) {
+        cpLoss = Math.max(0, evalBeforeRaw - evalAfterRaw);
+      } else {
+        cpLoss = Math.max(0, evalAfterRaw - evalBeforeRaw);
       }
       
-      const evalAfterResult = await engine.analyzePosition(chess.fen(), { depth: 12 });
-      const isWhiteMove = chess.turn() === 'b';
-      const evalAfter = evalAfterResult.score * (isWhiteMove ? -1 : 1);
-      
-      const cpLoss = Math.max(0, isWhiteMove ? (evalBefore - evalAfter) : (evalAfter - evalBefore));
-      
-      const currentPosAnalysis = await engine.analyzePosition(fen, { depth: 12 });
-      const bestMoveSan = currentPosAnalysis.bestMoveSan;
-      
+      // Classify the move
       let classification: MoveClassification;
       if (bestMoveSan && moveResult.san === bestMoveSan) {
+        classification = 'best';
+      } else if (bestMoveUci && `${from}${to}` === bestMoveUci.slice(0, 4)) {
         classification = 'best';
       } else {
         classification = classifyByLoss(cpLoss);
       }
       
-      // Also get the best move for the NEW position (after user's move)
-      const newPosAnalysis = await engine.analyzePosition(chess.fen(), { depth: 12 });
-      if (newPosAnalysis.bestMove && newPosAnalysis.bestMove.length >= 4) {
+      // Set move indicator for the square where piece landed
+      setExplorationMoveIndicator({
+        square: to,
+        classification,
+      });
+      
+      // Set best move arrow for the NEW position
+      if (afterAnalysis.bestMove && afterAnalysis.bestMove.length >= 4) {
         setExplorationBestMove({
-          from: newPosAnalysis.bestMove.slice(0, 2) as Square,
-          to: newPosAnalysis.bestMove.slice(2, 4) as Square,
+          from: afterAnalysis.bestMove.slice(0, 2) as Square,
+          to: afterAnalysis.bestMove.slice(2, 4) as Square,
         });
       } else {
         setExplorationBestMove(null);
       }
       
-      setExplorationPosition(chess.fen());
+      // Update exploration position
+      setExplorationPosition(newFen);
+      
+      // Set move feedback with normalized evals for display
+      // Display from the perspective of the player who just moved
+      const evalBeforeDisplay = wasWhiteTurn ? evalBeforeRaw : -evalBeforeRaw;
+      const evalAfterDisplay = wasWhiteTurn ? evalAfterRaw : -evalAfterRaw;
+      
       setMoveFeedback({
         classification,
-        evalBefore: evalBefore,
-        evalAfter: evalAfter,
+        evalBefore: evalBeforeDisplay,
+        evalAfter: evalAfterDisplay,
         bestMove: bestMoveSan,
         isGameMove: false,
       });
@@ -385,18 +386,20 @@ export default function AnalysisPage() {
       setIsAnalyzingMove(false);
       return { isValid: false };
     }
-  }, [interactiveMode, analysis, currentMoveIndex, currentPosition, explorationPosition]);
+  }, [interactiveMode, analysis, currentPosition, explorationPosition]);
 
   const toggleInteractiveMode = useCallback(() => {
     setInteractiveMode(prev => !prev);
     setExplorationPosition(null);
     setExplorationBestMove(null);
+    setExplorationMoveIndicator(null);
     setMoveFeedback(null);
   }, []);
 
   const returnToGamePosition = useCallback(() => {
     setExplorationPosition(null);
     setExplorationBestMove(null);
+    setExplorationMoveIndicator(null);
     setMoveFeedback(null);
   }, []);
 
@@ -484,7 +487,7 @@ export default function AnalysisPage() {
                   interactive={interactiveMode}
                   onUserMove={handleUserMove}
                   highlightSquares={currentMove && !explorationPosition ? [currentMove.from as Square, currentMove.to as Square] : []} 
-                  moveIndicator={!explorationPosition ? moveIndicator : undefined}
+                  moveIndicator={explorationPosition ? explorationMoveIndicator ?? undefined : moveIndicator}
                   bestMoveArrow={explorationPosition ? explorationBestMove : bestMoveArrow}
                   showBestMove={showBestMove}
                   boardWidth={400}
