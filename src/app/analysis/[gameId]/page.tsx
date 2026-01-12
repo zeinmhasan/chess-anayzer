@@ -164,6 +164,7 @@ export default function AnalysisPage() {
   const [explorationPosition, setExplorationPosition] = useState<string | null>(null);
   const [explorationBestMove, setExplorationBestMove] = useState<{ from: Square; to: Square } | null>(null);
   const [explorationMoveIndicator, setExplorationMoveIndicator] = useState<{ square: Square; classification: MoveClassification } | null>(null);
+  const [explorationEval, setExplorationEval] = useState<{ score: number; mate?: number } | null>(null);
   const [moveFeedback, setMoveFeedback] = useState<{
     classification: MoveClassification;
     evalBefore: number;
@@ -223,13 +224,17 @@ export default function AnalysisPage() {
   }, [analysis, currentMoveIndex, explorationPosition]);
 
   const currentEval = useMemo(() => {
+    // Use exploration eval when in exploration mode
+    if (explorationPosition && explorationEval) {
+      return explorationEval;
+    }
     if (!analysis || currentMoveIndex === -1) return { score: 20, mate: undefined };
     const move = analysis.moves[currentMoveIndex];
     if (!move) return { score: 0, mate: undefined };
     const evalData = move.evalAfter;
     const flipSign = move.isWhite ? -1 : 1;
     return { score: evalData.score * flipSign, mate: evalData.mate !== undefined ? evalData.mate * flipSign : undefined };
-  }, [analysis, currentMoveIndex]);
+  }, [analysis, currentMoveIndex, explorationPosition, explorationEval]);
 
   const currentMove = useMemo(() => {
     if (!analysis || currentMoveIndex === -1) return null;
@@ -261,11 +266,11 @@ export default function AnalysisPage() {
     });
   }, [analysis]);
 
-  const goToStart = useCallback(() => { setCurrentMoveIndex(-1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
-  const goBack = useCallback(() => { setCurrentMoveIndex(prev => Math.max(-1, prev - 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
-  const goForward = useCallback(() => { if (analysis) { setCurrentMoveIndex(prev => Math.min(analysis.moves.length - 1, prev + 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); } }, [analysis]);
-  const goToEnd = useCallback(() => { if (analysis) { setCurrentMoveIndex(analysis.moves.length - 1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); } }, [analysis]);
-  const goToMove = useCallback((index: number) => { setCurrentMoveIndex(index); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setMoveFeedback(null); }, []);
+  const goToStart = useCallback(() => { setCurrentMoveIndex(-1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setExplorationEval(null); setMoveFeedback(null); }, []);
+  const goBack = useCallback(() => { setCurrentMoveIndex(prev => Math.max(-1, prev - 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setExplorationEval(null); setMoveFeedback(null); }, []);
+  const goForward = useCallback(() => { if (analysis) { setCurrentMoveIndex(prev => Math.min(analysis.moves.length - 1, prev + 1)); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setExplorationEval(null); setMoveFeedback(null); } }, [analysis]);
+  const goToEnd = useCallback(() => { if (analysis) { setCurrentMoveIndex(analysis.moves.length - 1); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setExplorationEval(null); setMoveFeedback(null); } }, [analysis]);
+  const goToMove = useCallback((index: number) => { setCurrentMoveIndex(index); setExplorationPosition(null); setExplorationBestMove(null); setExplorationMoveIndicator(null); setExplorationEval(null); setMoveFeedback(null); }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -313,27 +318,34 @@ export default function AnalysisPage() {
       const engine = engineRef.current;
       
       // Analyze position BEFORE the move to get best move and eval
+      // Stockfish returns score from perspective of side to move
       const beforeAnalysis = await engine.analyzePosition(fen, { depth: 12 });
       const bestMoveSan = beforeAnalysis.bestMoveSan;
       const bestMoveUci = beforeAnalysis.bestMove;
       
-      // Eval before from white's perspective
-      const evalBeforeRaw = beforeAnalysis.score;
+      // beforeAnalysis.score is from perspective of wasWhiteTurn (the player who just moved)
+      // Convert to white's perspective
+      const evalBeforeWhitePerspective = wasWhiteTurn ? beforeAnalysis.score : -beforeAnalysis.score;
       
       // Analyze position AFTER the move
       const afterAnalysis = await engine.analyzePosition(newFen, { depth: 12 });
-      // Note: evalAfter is from the perspective of the player TO MOVE (opponent)
-      // So we need to flip it to get from white's perspective
-      const evalAfterRaw = -afterAnalysis.score;
+      // afterAnalysis.score is from perspective of the opponent (who moves next)
+      // If wasWhiteTurn (white just moved), now it's black's turn, so afterAnalysis.score is from black's perspective
+      // Convert to white's perspective: if black to move, flip the sign
+      const evalAfterWhitePerspective = wasWhiteTurn ? -afterAnalysis.score : afterAnalysis.score;
       
       // Calculate centipawn loss from the moving player's perspective
-      // If white moved: loss = evalBefore - evalAfter (both from white's perspective)
-      // If black moved: loss = -evalBefore - (-evalAfter) = evalAfter - evalBefore
+      // Loss = how much the position got worse for the moving player
+      // From white's perspective: if white moved and position got worse for white, evalBefore > evalAfter
+      // From black's perspective: if black moved and position got worse for black, -evalBefore > -evalAfter means evalAfter > evalBefore
       let cpLoss: number;
       if (wasWhiteTurn) {
-        cpLoss = Math.max(0, evalBeforeRaw - evalAfterRaw);
+        // White moved: loss = evalBefore - evalAfter (from white's perspective)
+        cpLoss = Math.max(0, evalBeforeWhitePerspective - evalAfterWhitePerspective);
       } else {
-        cpLoss = Math.max(0, evalAfterRaw - evalBeforeRaw);
+        // Black moved: loss = -evalBefore - (-evalAfter) = evalAfter - evalBefore (from white's perspective)
+        // Or equivalently: loss for black = how much position improved for white
+        cpLoss = Math.max(0, evalAfterWhitePerspective - evalBeforeWhitePerspective);
       }
       
       // Classify the move
@@ -365,10 +377,16 @@ export default function AnalysisPage() {
       // Update exploration position
       setExplorationPosition(newFen);
       
+      // Set exploration eval for the evaluation bar (from white's perspective)
+      setExplorationEval({
+        score: evalAfterWhitePerspective,
+        mate: afterAnalysis.mate !== undefined ? (wasWhiteTurn ? -afterAnalysis.mate : afterAnalysis.mate) : undefined,
+      });
+      
       // Set move feedback with normalized evals for display
       // Display from the perspective of the player who just moved
-      const evalBeforeDisplay = wasWhiteTurn ? evalBeforeRaw : -evalBeforeRaw;
-      const evalAfterDisplay = wasWhiteTurn ? evalAfterRaw : -evalAfterRaw;
+      const evalBeforeDisplay = wasWhiteTurn ? evalBeforeWhitePerspective : -evalBeforeWhitePerspective;
+      const evalAfterDisplay = wasWhiteTurn ? evalAfterWhitePerspective : -evalAfterWhitePerspective;
       
       setMoveFeedback({
         classification,
@@ -393,6 +411,7 @@ export default function AnalysisPage() {
     setExplorationPosition(null);
     setExplorationBestMove(null);
     setExplorationMoveIndicator(null);
+    setExplorationEval(null);
     setMoveFeedback(null);
   }, []);
 
@@ -400,6 +419,7 @@ export default function AnalysisPage() {
     setExplorationPosition(null);
     setExplorationBestMove(null);
     setExplorationMoveIndicator(null);
+    setExplorationEval(null);
     setMoveFeedback(null);
   }, []);
 
