@@ -36,6 +36,7 @@ interface GameData {
   date: string;
   result: string;
   url: string;
+  username?: string;
 }
 
 export type MoveClassification = 

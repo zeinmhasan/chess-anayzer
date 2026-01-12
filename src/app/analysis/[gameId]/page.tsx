@@ -21,7 +21,7 @@ import type { Square } from 'react-chessboard/dist/chessboard/types';
 interface GameData {
   id: string; pgn: string; white: string; black: string;
   whiteRating: number; blackRating: number; timeClass: string;
-  date: string; result: string; url: string;
+  date: string; result: string; url: string; username?: string;
 }
 
 type MoveClassification = 'brilliant' | 'great' | 'best' | 'excellent' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'blunder' | 'forced';
@@ -420,7 +420,7 @@ export default function AnalysisPage() {
     <div className="h-screen bg-gray-950 text-white flex flex-col overflow-hidden">
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/games')} className="p-1.5 hover:bg-gray-800 rounded"><ChevronLeft size={18} /></button>
+          <button onClick={() => router.push(gameData?.username ? `/games?username=${encodeURIComponent(gameData.username)}` : '/games')} className="p-1.5 hover:bg-gray-800 rounded"><ChevronLeft size={18} /></button>
           <div className="min-w-0">
             <h1 className="font-semibold text-sm truncate">{gameData?.white || 'White'} vs {gameData?.black || 'Black'}</h1>
             <p className="text-xs text-gray-400">{gameData?.date} • {gameData?.timeClass}</p>

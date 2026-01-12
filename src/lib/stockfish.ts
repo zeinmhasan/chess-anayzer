@@ -30,7 +30,7 @@ import type {
  * Default analysis options
  */
 const DEFAULT_OPTIONS: Required<StockfishAnalysisOptions> = {
-  depth: 18,
+  depth: 8,
   maxTime: 10000,
   multiPv: 1,
   skillLevel: 20,

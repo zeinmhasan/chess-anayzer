@@ -141,7 +141,7 @@ function GameSelectorContent() {
       // Check if we already have analysis for this game
       const existingAnalysis = localStorage.getItem(`analysis_${gameId}`);
       
-      // Store game data for analysis
+      // Store game data for analysis (including username for back navigation)
       localStorage.setItem('pendingAnalysis', JSON.stringify({
         id: game.id,
         pgn: game.pgn,
@@ -152,7 +152,8 @@ function GameSelectorContent() {
         timeClass: game.timeClass,
         date: game.date,
         result: game.result,
-        url: game.url
+        url: game.url,
+        username: username
       }));
       
       // If already analyzed, go directly to analysis page

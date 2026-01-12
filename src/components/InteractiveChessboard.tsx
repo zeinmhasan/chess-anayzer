@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, memo, useCallback, useMemo } from 'react';
+import { Chess } from 'chess.js';
 import { Chessboard as ReactChessboard } from 'react-chessboard';
 import type { Square } from 'react-chessboard/dist/chessboard/types';
 import { 
@@ -164,6 +165,10 @@ function InteractiveChessboardComponent({
     to: Square;
     classification?: MoveClassification;
   } | null>(null);
+  
+  // State for click-to-move functionality
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalMoves, setLegalMoves] = useState<Square[]>([]);
 
   // Auto-adjust board size based on viewport
   useEffect(() => {
@@ -182,6 +187,109 @@ function InteractiveChessboardComponent({
     return () => window.removeEventListener('resize', updateSize);
   }, [boardWidth]);
 
+  // Get legal moves for a piece on a square
+  const getLegalMovesForSquare = useCallback((square: Square): Square[] => {
+    try {
+      const chess = new Chess(position);
+      const moves = chess.moves({ square, verbose: true });
+      return moves.map(move => move.to as Square);
+    } catch {
+      return [];
+    }
+  }, [position]);
+
+  // Check if there's a piece on a square
+  const hasPieceOnSquare = useCallback((square: Square): boolean => {
+    try {
+      const chess = new Chess(position);
+      return chess.get(square) !== null;
+    } catch {
+      return false;
+    }
+  }, [position]);
+
+  // Handle square click for click-to-move
+  const handleSquareClick = useCallback((square: Square) => {
+    if (!interactive) return;
+
+    // If a square is already selected
+    if (selectedSquare) {
+      // If clicking the same square, deselect
+      if (square === selectedSquare) {
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        return;
+      }
+
+      // If clicking on a legal move square, make the move
+      if (legalMoves.includes(square)) {
+        // Check if it's a pawn promotion
+        const chess = new Chess(position);
+        const piece = chess.get(selectedSquare);
+        const isPawnPromotion = 
+          piece?.type === 'p' && 
+          (square[1] === '8' || square[1] === '1');
+        
+        const promotion = isPawnPromotion ? 'q' : undefined;
+
+        // Make the move
+        if (onUserMove) {
+          onUserMove(selectedSquare, square, promotion).then((result) => {
+            if (result.isValid && result.classification) {
+              setPendingMove({
+                from: selectedSquare,
+                to: square,
+                classification: result.classification,
+              });
+              setTimeout(() => setPendingMove(null), 2000);
+            }
+          });
+        } else if (onMove) {
+          onMove(selectedSquare, square, promotion);
+        }
+
+        // Clear selection
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        return;
+      }
+
+      // If clicking on another piece of same color, select that piece instead
+      if (hasPieceOnSquare(square)) {
+        const chess = new Chess(position);
+        const clickedPiece = chess.get(square);
+        const selectedPiece = chess.get(selectedSquare);
+        
+        if (clickedPiece && selectedPiece && clickedPiece.color === selectedPiece.color) {
+          const moves = getLegalMovesForSquare(square);
+          if (moves.length > 0) {
+            setSelectedSquare(square);
+            setLegalMoves(moves);
+            return;
+          }
+        }
+      }
+
+      // Otherwise, deselect
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      return;
+    }
+
+    // No square selected - try to select this square if it has a piece with legal moves
+    const moves = getLegalMovesForSquare(square);
+    if (moves.length > 0) {
+      setSelectedSquare(square);
+      setLegalMoves(moves);
+    }
+  }, [interactive, selectedSquare, legalMoves, position, onMove, onUserMove, getLegalMovesForSquare, hasPieceOnSquare]);
+
+  // Clear selection when position changes externally
+  useEffect(() => {
+    setSelectedSquare(null);
+    setLegalMoves([]);
+  }, [position]);
+
   // Build custom square styles for highlighting
   const customSquareStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
@@ -190,6 +298,27 @@ function InteractiveChessboardComponent({
     highlightSquares.forEach(square => {
       styles[square] = {
         backgroundColor: 'rgba(255, 255, 0, 0.4)',
+      };
+    });
+
+    // Highlight selected square
+    if (selectedSquare) {
+      styles[selectedSquare] = {
+        ...styles[selectedSquare],
+        backgroundColor: 'rgba(255, 255, 0, 0.6)',
+        boxShadow: 'inset 0 0 0 3px rgba(255, 200, 0, 0.8)',
+      };
+    }
+
+    // Highlight legal move squares with dots
+    legalMoves.forEach(square => {
+      const hasCapture = hasPieceOnSquare(square);
+      styles[square] = {
+        ...styles[square],
+        background: hasCapture 
+          ? 'radial-gradient(transparent 0%, transparent 79%, rgba(0,0,0,0.3) 80%)'
+          : 'radial-gradient(rgba(0,0,0,0.2) 25%, transparent 25%)',
+        cursor: 'pointer',
       };
     });
 
@@ -203,13 +332,19 @@ function InteractiveChessboardComponent({
     }
 
     return styles;
-  }, [highlightSquares, moveIndicator]);
+  }, [highlightSquares, moveIndicator, selectedSquare, legalMoves, hasPieceOnSquare]);
 
   // Custom arrows for best move
   const customArrows = useMemo(() => {
     if (!showBestMove || !bestMoveArrow) return [];
     return [[bestMoveArrow.from, bestMoveArrow.to, 'rgba(0, 180, 0, 0.7)'] as [Square, Square, string]];
   }, [showBestMove, bestMoveArrow]);
+
+  // Handle piece drag start - clear click selection
+  const handlePieceDragBegin = useCallback((_piece: string, _sourceSquare: Square) => {
+    setSelectedSquare(null);
+    setLegalMoves([]);
+  }, []);
 
   // Handle piece drop - must return boolean synchronously
   const handlePieceDrop = useCallback((
@@ -218,6 +353,10 @@ function InteractiveChessboardComponent({
     piece: string
   ): boolean => {
     if (!interactive) return false;
+
+    // Clear click selection on drop
+    setSelectedSquare(null);
+    setLegalMoves([]);
 
     // Check if it's a pawn promotion
     const isPawnPromotion = 
@@ -325,6 +464,8 @@ function InteractiveChessboardComponent({
           boardOrientation={orientation}
           boardWidth={boardSize}
           onPieceDrop={handlePieceDrop}
+          onPieceDragBegin={handlePieceDragBegin}
+          onSquareClick={handleSquareClick}
           customSquareStyles={customSquareStyles}
           customArrows={customArrows}
           arePiecesDraggable={interactive}
